@@ -3,13 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'viewmodel.dart';
 import 'model.dart';
-import 'api_service.dart';
+import 'api_service.dart'; // SocketStatus를 사용하기 위해 import 추가
 
 const Color backGroundDark = Color(0xFF080810);
 const Color backGround = Color(0xFF151519);
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -163,12 +163,46 @@ Widget buildProfileImage(String name, {double size = 50, bool isSquare = true}) 
 
 // --- 왼쪽 패널 ---
 class LeftPanel extends StatelessWidget {
-  const LeftPanel({Key? key}) : super(key: key);
+  const LeftPanel({super.key});
 
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<InterviewViewModel>();
     final allDepts = [...realDepartments, ...specialDepartments];
+
+    // 이 메서드 내부에 _buildMiniProfile을 정의하여 viewModel을 캡처합니다.
+    Widget buildMiniProfile(Candidate c) {
+      // 현재 선택된 지원자인지 확인
+      final isSelected = viewModel.selectedCandidate?.name == c.name;
+
+      return GestureDetector(
+        onTap: () {
+          // 지원자 선택 로직 호출
+          context.read<InterviewViewModel>().selectCandidate(c);
+        },
+        child: Container(
+          width: 70,
+          margin: const EdgeInsets.only(right: 8),
+          padding: const EdgeInsets.all(4), // 테두리 및 그림자 공간 확보
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            // 선택된 경우 파란색 테두리 추가
+            border: Border.all(
+              color: isSelected ? Colors.blue : Colors.transparent,
+              width: 2,
+            ),
+            color: isSelected ? Colors.blue.withOpacity(0.15) : Colors.transparent, // 선택 배경색
+          ),
+          child: Column(
+            children: [
+              buildProfileImage(c.name, size: 42, isSquare: true), // 크기 약간 줄여서 공간 확보
+              const SizedBox(height: 2),
+              Text(c.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10)), // 폰트 크기 줄여서 공간 확보
+            ],
+          ),
+        ),
+      );
+    }
 
     return Container(
       color: backGroundDark,
@@ -240,7 +274,7 @@ class LeftPanel extends StatelessWidget {
                     scrollDirection: Axis.horizontal,
                     children: [
                       // 1. 확정 리스트
-                      ...confirmedList.map((c) => _buildMiniProfile(c)),
+                      ...confirmedList.map((c) => buildMiniProfile(c)),
 
                       // 2. 검은색 구분선 (항상 존재)
                       Container(
@@ -250,7 +284,7 @@ class LeftPanel extends StatelessWidget {
                       ),
 
                       // 3. 후보 리스트
-                      ...candidateList.map((c) => _buildMiniProfile(c)),
+                      ...candidateList.map((c) => buildMiniProfile(c)),
                     ],
                   ),
                 ),
@@ -261,25 +295,11 @@ class LeftPanel extends StatelessWidget {
       ),
     );
   }
-
-  Widget _buildMiniProfile(Candidate c) {
-    return Container(
-      width: 70,
-      margin: const EdgeInsets.only(right: 8),
-      child: Column(
-        children: [
-          buildProfileImage(c.name, size: 50, isSquare: true),
-          const SizedBox(height: 4),
-          Text(c.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
-        ],
-      ),
-    );
-  }
 }
 
 // --- 가운데 패널 ---
 class MiddlePanel extends StatelessWidget {
-  const MiddlePanel({Key? key}) : super(key: key);
+  const MiddlePanel({super.key});
 
   Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
@@ -368,7 +388,7 @@ class MiddlePanel extends StatelessWidget {
                   border: Border.all(color: Colors.grey[300]!)
               ),
               child: SingleChildScrollView(
-                child: Text(candidate.comment, style: const TextStyle(fontSize: 16)),
+                child: SelectableText(candidate.comment, style: const TextStyle(fontSize: 16)),
               ),
             ),
           ),
@@ -414,11 +434,11 @@ class HoverDeptButton extends StatefulWidget {
   final Color globalBorderColor;
 
   const HoverDeptButton({
-    Key? key,
+    super.key,
     required this.deptName,
     required this.candidate,
     required this.globalBorderColor,
-  }) : super(key: key);
+  });
 
   @override
   State<HoverDeptButton> createState() => _HoverDeptButtonState();
@@ -510,10 +530,10 @@ class SimpleDeptButton extends StatelessWidget {
   final Candidate candidate;
 
   const SimpleDeptButton({
-    Key? key,
+    super.key,
     required this.deptName,
     required this.candidate,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -546,7 +566,7 @@ class SimpleDeptButton extends StatelessWidget {
 
 // --- 오른쪽 패널 ---
 class RightPanel extends StatelessWidget {
-  const RightPanel({Key? key}) : super(key: key);
+  const RightPanel({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +583,7 @@ class RightPanel extends StatelessWidget {
 
           return GestureDetector(
             onTap: () {
+              // 클릭 시 해당 지원자를 선택합니다.
               isSelected ? viewModel.clearSelection() : viewModel.selectCandidate(candidate);
             },
             child: Container(
