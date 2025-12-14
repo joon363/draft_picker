@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'model.dart';
 import 'api_service.dart';
+import 'dart:async';
 
 class InterviewViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -9,12 +10,28 @@ class InterviewViewModel extends ChangeNotifier {
   Candidate? _selectedCandidate;
   bool _isLoading = true;
 
+  // ApiService의 ValueNotifier를 구독하여 상태를 받아옴
+  SocketStatus _socketStatus = SocketStatus.disconnected;
+
   List<Candidate> get candidates => _candidates;
   Candidate? get selectedCandidate => _selectedCandidate;
   bool get isLoading => _isLoading;
 
+  // 외부에서 웹소켓 상태를 가져갈 수 있도록 Getter 추가
+  SocketStatus get socketStatus => _socketStatus;
+
   InterviewViewModel() {
+    // 1. 초기 데이터 로드 및 웹소켓 연결 시작
     _initData();
+
+    // 2. 웹소켓 상태 변화를 구독 (addListener는 void 반환이므로 변수에 할당하지 않음)
+    _apiService.socketStatus.addListener(_onSocketStatusChanged);
+  }
+
+  // 상태 변경 리스너
+  void _onSocketStatusChanged() {
+    _socketStatus = _apiService.socketStatus.value;
+    notifyListeners();
   }
 
   Future<void> _initData() async {
@@ -22,6 +39,7 @@ class InterviewViewModel extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
 
+    // 웹소켓 연결 및 스트림 구독 시작
     _apiService.connectSocket();
     _apiService.assignmentStream.listen((statusList) {
       _updateAssignments(statusList);
@@ -64,6 +82,8 @@ class InterviewViewModel extends ChangeNotifier {
 
   @override
   void dispose() {
+    // ValueNotifier 리스너 해제
+    _apiService.socketStatus.removeListener(_onSocketStatusChanged);
     _apiService.dispose();
     super.dispose();
   }

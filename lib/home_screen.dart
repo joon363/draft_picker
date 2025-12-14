@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'viewmodel.dart';
 import 'model.dart';
+import 'api_service.dart';
 
 const Color backGroundDark = Color(0xFF080810);
 const Color backGround = Color(0xFF151519);
@@ -20,13 +21,80 @@ class HomeScreen extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: backGroundDark,
-      body: Row(
+      // Stack을 사용하여 Row 위에 상태 표시 위젯을 띄웁니다.
+      body: Stack(
         children: [
-          Expanded(flex: 1, child: const LeftPanel()),
-          const VerticalDivider(width: 1),
-          Expanded(flex: 2, child: const MiddlePanel()),
-          const VerticalDivider(width: 1),
-          Expanded(flex: 1, child: const RightPanel()),
+          Row(
+            children: [
+              Expanded(flex: 1, child: const LeftPanel()),
+              const VerticalDivider(width: 1),
+              Expanded(flex: 2, child: const MiddlePanel()),
+              const VerticalDivider(width: 1),
+              Expanded(flex: 1, child: const RightPanel()),
+            ],
+          ),
+          // 웹소켓 상태 표시 위젯 (화면 맨 위에 위치)
+          Positioned(
+            top: 10,
+            right: 10,
+            child: _buildSocketStatusIndicator(viewModel.socketStatus),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 웹소켓 상태에 따라 다른 위젯을 반환하는 헬퍼 함수
+  Widget _buildSocketStatusIndicator(SocketStatus status) {
+    String text;
+    Color color;
+    IconData icon;
+
+    switch (status) {
+      case SocketStatus.connected:
+        text = "연결됨";
+        color = Colors.green.shade600;
+        icon = Icons.check_circle_outline;
+        break;
+      case SocketStatus.connecting:
+        text = "연결 중...";
+        color = Colors.orange.shade600;
+        icon = Icons.settings_ethernet;
+        break;
+      case SocketStatus.disconnected:
+      default:
+        text = "연결 끊김 (재시도 중)";
+        color = Colors.red.shade600;
+        icon = Icons.signal_wifi_off;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: color.withOpacity(0.5),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.white, size: 16),
+          const SizedBox(width: 6),
+          Text(
+            text,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 12,
+            ),
+          ),
         ],
       ),
     );
@@ -148,11 +216,11 @@ class LeftPanel extends StatelessWidget {
 
           return Container(
             height: 122,
-            margin: EdgeInsets.all(8),
+            margin: const EdgeInsets.all(8),
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
-              color: containerColor, // 결정된 배경색 적용
-              borderRadius: BorderRadius.circular(12)
+                color: containerColor, // 결정된 배경색 적용
+                borderRadius: BorderRadius.circular(12)
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -252,7 +320,8 @@ class MiddlePanel extends StatelessWidget {
       padding: const EdgeInsets.all(24),
       //color: Colors.white,
       child: Column(
-        spacing: 16,
+        // crossAxisAlignment: CrossAxisAlignment.stretch, // Column의 children이 stretch 되도록 설정
+        // mainAxisAlignment: MainAxisAlignment.start,
         children: [
           buildProfileImage(candidate.name, size: 120, isSquare: true),
           Text(candidate.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
