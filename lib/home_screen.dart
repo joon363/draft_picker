@@ -9,7 +9,7 @@ const Color backGroundDark = Color(0xFF080810);
 const Color backGround = Color(0xFF151519);
 
 class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +163,7 @@ Widget buildProfileImage(String name, {double size = 50, bool isSquare = true}) 
 
 // --- 왼쪽 패널 ---
 class LeftPanel extends StatelessWidget {
-  const LeftPanel({super.key});
+  const LeftPanel({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -171,7 +171,7 @@ class LeftPanel extends StatelessWidget {
     final allDepts = [...realDepartments, ...specialDepartments];
 
     // 이 메서드 내부에 _buildMiniProfile을 정의하여 viewModel을 캡처합니다.
-    Widget buildMiniProfile(Candidate c) {
+    Widget _buildMiniProfile(Candidate c) {
       // 현재 선택된 지원자인지 확인
       final isSelected = viewModel.selectedCandidate?.name == c.name;
 
@@ -197,7 +197,7 @@ class LeftPanel extends StatelessWidget {
             children: [
               buildProfileImage(c.name, size: 42, isSquare: true), // 크기 약간 줄여서 공간 확보
               const SizedBox(height: 2),
-              Text(c.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 10)), // 폰트 크기 줄여서 공간 확보
+              Text(c.name, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white, fontSize: 10)), // 폰트 크기 줄여서 공간 확보
             ],
           ),
         ),
@@ -274,7 +274,7 @@ class LeftPanel extends StatelessWidget {
                     scrollDirection: Axis.horizontal,
                     children: [
                       // 1. 확정 리스트
-                      ...confirmedList.map((c) => buildMiniProfile(c)),
+                      ...confirmedList.map((c) => _buildMiniProfile(c)),
 
                       // 2. 검은색 구분선 (항상 존재)
                       Container(
@@ -284,7 +284,7 @@ class LeftPanel extends StatelessWidget {
                       ),
 
                       // 3. 후보 리스트
-                      ...candidateList.map((c) => buildMiniProfile(c)),
+                      ...candidateList.map((c) => _buildMiniProfile(c)),
                     ],
                   ),
                 ),
@@ -299,7 +299,7 @@ class LeftPanel extends StatelessWidget {
 
 // --- 가운데 패널 ---
 class MiddlePanel extends StatelessWidget {
-  const MiddlePanel({super.key});
+  const MiddlePanel({Key? key}) : super(key: key);
 
   Future<void> _launchURL(String url) async {
     final Uri uri = Uri.parse(url);
@@ -345,7 +345,7 @@ class MiddlePanel extends StatelessWidget {
         spacing: 4,
         children: [
           buildProfileImage(candidate.name, size: 120, isSquare: true),
-          Text(candidate.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(candidate.name, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
 
           Wrap(
             spacing: 8,
@@ -359,7 +359,7 @@ class MiddlePanel extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("면접 코멘트", style: TextStyle(fontWeight: FontWeight.bold)),
+              const Text("면접 코멘트", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ElevatedButton.icon(
                 onPressed: () {
                   if (candidate.transcriptUrl.isNotEmpty) {
@@ -389,7 +389,10 @@ class MiddlePanel extends StatelessWidget {
                   border: Border.all(color: Colors.grey[300]!)
               ),
               child: SingleChildScrollView(
-                child: SelectableText(candidate.comment, style: const TextStyle(fontSize: 16)),
+                child: SelectableText( // <--- 이 부분을 SelectableText로 변경
+                  candidate.comment,
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
               ),
             ),
           ),
@@ -435,11 +438,11 @@ class HoverDeptButton extends StatefulWidget {
   final Color globalBorderColor;
 
   const HoverDeptButton({
-    super.key,
+    Key? key,
     required this.deptName,
     required this.candidate,
     required this.globalBorderColor,
-  });
+  }) : super(key: key);
 
   @override
   State<HoverDeptButton> createState() => _HoverDeptButtonState();
@@ -531,10 +534,10 @@ class SimpleDeptButton extends StatelessWidget {
   final Candidate candidate;
 
   const SimpleDeptButton({
-    super.key,
+    Key? key,
     required this.deptName,
     required this.candidate,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -567,67 +570,139 @@ class SimpleDeptButton extends StatelessWidget {
 
 // --- 오른쪽 패널 ---
 class RightPanel extends StatelessWidget {
-  const RightPanel({super.key});
+  const RightPanel({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final viewModel = context.watch<InterviewViewModel>();
+    // '전체' 옵션을 포함한 드롭다운 선택지
+    final allFilterOptions = ['전체', ...allDepartments];
+    final currentCandidates = viewModel.filteredCandidates; // 필터링된 목록 사용
 
     return Container(
       padding: const EdgeInsets.all(16),
-      child: ListView.separated(
-        itemCount: viewModel.candidates.length,
-        separatorBuilder: (ctx, idx) => const SizedBox(height: 12),
-        itemBuilder: (context, index) {
-          final candidate = viewModel.candidates[index];
-          bool isSelected = viewModel.selectedCandidate?.name == candidate.name;
-
-          return GestureDetector(
-            onTap: () {
-              // 클릭 시 해당 지원자를 선택합니다.
-              isSelected ? viewModel.clearSelection() : viewModel.selectCandidate(candidate);
-            },
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: backGround,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: isSelected ? Colors.blue : Colors.grey[300]!,
-                    width: isSelected ? 3.0 : 1.0
-                ),
+      child: Column(
+        children: [
+          // 1. 지원국 필터 드롭다운
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: backGround,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: Colors.grey[700]!),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                // 현재 필터 값 설정. null이면 '전체'로 표시
+                value: viewModel.filterDept ?? '전체',
+                isExpanded: true,
+                dropdownColor: backGround,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                onChanged: (String? newValue) {
+                  // '전체'를 선택하면 null로 설정하여 필터 해제
+                  context.read<InterviewViewModel>().setFilterDepartment(
+                      newValue == '전체' ? null : newValue
+                  );
+                },
+                items: allFilterOptions.map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                        value,
+                        style: TextStyle(color: Colors.white.withOpacity(value == viewModel.filterDept || (viewModel.filterDept == null && value == '전체') ? 1.0 : 0.7))
+                    ),
+                  );
+                }).toList(),
               ),
-              child: Row(
-                children: [
-                  buildProfileImage(candidate.name, size: 50, isSquare: false),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            ),
+          ),
+
+          // 2. 이름 검색 창
+          Container(
+            margin: const EdgeInsets.only(bottom: 16),
+            child: TextField(
+              onChanged: (value) {
+                context.read<InterviewViewModel>().setSearchTerm(value);
+              },
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                hintText: '이름으로 검색...',
+                hintStyle: TextStyle(color: Colors.grey[500]),
+                prefixIcon: const Icon(Icons.search, color: Colors.white70),
+                fillColor: backGround,
+                filled: true,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+              ),
+            ),
+          ),
+
+          // 3. 필터링된 지원자 목록
+          Expanded(
+            child: ListView.separated(
+              itemCount: currentCandidates.length,
+              separatorBuilder: (ctx, idx) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final candidate = currentCandidates[index];
+                bool isSelected = viewModel.selectedCandidate?.name == candidate.name;
+
+                return GestureDetector(
+                  onTap: () {
+                    // 클릭 시 해당 지원자를 선택합니다.
+                    isSelected ? viewModel.clearSelection() : viewModel.selectCandidate(candidate);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: backGround,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: isSelected ? Colors.blue : Colors.grey[300]!,
+                          width: isSelected ? 3.0 : 1.0
+                      ),
+                    ),
+                    child: Row(
                       children: [
-                        Text(candidate.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                        const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 4,
-                          runSpacing: 4,
-                          children: candidate.appliedList.map((d) => Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                            decoration: BoxDecoration(
-                                color: getDeptColor(d).withOpacity(0.2),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: getDeptColor(d), width: 0.5)
-                            ),
-                            child: Text(d, style: TextStyle(fontSize: 10, color: getDeptColor(d), fontWeight: FontWeight.bold)),
-                          )).toList(),
+                        buildProfileImage(candidate.name, size: 50, isSquare: false),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // 이름도 SelectableText로 변경하여 검색 및 복사 가능하게 함
+                              SelectableText(
+                                candidate.name,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white),
+                              ),
+                              const SizedBox(height: 6),
+                              Wrap(
+                                spacing: 4,
+                                runSpacing: 4,
+                                children: candidate.appliedList.map((d) => Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                      color: getDeptColor(d).withOpacity(0.2),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: getDeptColor(d), width: 0.5)
+                                  ),
+                                  child: Text(d, style: TextStyle(fontSize: 10, color: getDeptColor(d), fontWeight: FontWeight.bold)),
+                                )).toList(),
+                              )
+                            ],
+                          ),
                         )
                       ],
                     ),
-                  )
-                ],
-              ),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'viewmodel.dart';
 import 'home_screen.dart';
+import 'theme.dart';
 
 void main() {
   runApp(const MyApp());
@@ -36,18 +37,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Interview Dashboard',
-        theme: ThemeData(
-          // 기본 색상표를 어둡게 설정
-          primarySwatch: Colors.blue,
-          brightness: Brightness.dark,
-          // Scaffold의 기본 배경색을 어둡게 설정하여 흰색 텍스트가 잘 보이도록 함
-          scaffoldBackgroundColor: Colors.grey[900],
-          // 텍스트 테마 적용
-          textTheme: whiteTextTheme,
-          // 아이콘 색상도 흰색으로 통일
-          iconTheme: const IconThemeData(color: Colors.white),
-          fontFamily: 'NotoSansKR',
-        ),
+        theme: AppTheme.lightTheme(context),
         home: const HomeScreen(),
         debugShowCheckedModeBanner: false,
       ),

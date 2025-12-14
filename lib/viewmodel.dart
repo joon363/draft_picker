@@ -13,6 +13,32 @@ class InterviewViewModel extends ChangeNotifier {
   // ApiService의 ValueNotifier를 구독하여 상태를 받아옴
   SocketStatus _socketStatus = SocketStatus.disconnected;
 
+  // --- [새로 추가된 필터 및 검색 상태] ---
+  String? _filterDept; // null은 '전체'를 의미
+  String _searchTerm = '';
+
+  String? get filterDept => _filterDept;
+  String get searchTerm => _searchTerm;
+
+  // 필터링된 지원자 목록을 반환하는 Getter
+  List<Candidate> get filteredCandidates {
+    var list = _candidates;
+
+    // 1. 지원국 필터 적용
+    if (_filterDept != null && _filterDept != '전체') {
+      list = list.where((c) => c.appliedList.contains(_filterDept!)).toList();
+    }
+
+    // 2. 이름 검색 필터 적용
+    if (_searchTerm.isNotEmpty) {
+      final term = _searchTerm.toLowerCase();
+      list = list.where((c) => c.name.toLowerCase().contains(term)).toList();
+    }
+
+    return list;
+  }
+  // ------------------------------------
+
   List<Candidate> get candidates => _candidates;
   Candidate? get selectedCandidate => _selectedCandidate;
   bool get isLoading => _isLoading;
@@ -69,6 +95,18 @@ class InterviewViewModel extends ChangeNotifier {
     _selectedCandidate = null;
     notifyListeners();
   }
+
+  // --- [새로 추가된 필터/검색 설정 메소드] ---
+  void setFilterDepartment(String? dept) {
+    _filterDept = dept;
+    notifyListeners();
+  }
+
+  void setSearchTerm(String term) {
+    _searchTerm = term.trim();
+    notifyListeners();
+  }
+  // ----------------------------------------
 
   void toggleAssignment(String department, String status) {
     if (_selectedCandidate == null) return;
