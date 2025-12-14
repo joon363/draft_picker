@@ -1,0 +1,543 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'viewmodel.dart';
+import 'model.dart';
+
+const Color backGroundDark = Color(0xFF080810);
+const Color backGround = Color(0xFF151519);
+
+class HomeScreen extends StatelessWidget {
+  const HomeScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<InterviewViewModel>();
+
+    if (viewModel.isLoading) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    return Scaffold(
+      backgroundColor: backGroundDark,
+      body: Row(
+        children: [
+          Expanded(flex: 1, child: const LeftPanel()),
+          const VerticalDivider(width: 1),
+          Expanded(flex: 2, child: const MiddlePanel()),
+          const VerticalDivider(width: 1),
+          Expanded(flex: 1, child: const RightPanel()),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 공통 상수 및 헬퍼 ---
+const List<String> realDepartments = [
+  "1. 사무총괄국",
+  "2. 재정관리국",
+  "3. 소통연결국",
+  "4. 대외협력국",
+  "5. 나눔복지국",
+  "6. 문화기획국",
+  "7. 비서실",
+  "8. 미래전략실",
+];
+
+const List<String> specialDepartments = [
+  "탈락",
+  "보류",
+];
+
+const List<String> allDepartments = [
+  "1. 사무총괄국",
+  "2. 재정관리국",
+  "3. 소통연결국",
+  "4. 대외협력국",
+  "5. 나눔복지국",
+  "6. 문화기획국",
+  "7. 비서실",
+  "8. 미래전략실",
+  "탈락",
+  "보류",
+];
+
+
+
+Color getDeptColor(String dept) {
+  final colors = [
+    Colors.redAccent, Colors.orangeAccent, Colors.amber, Colors.green,
+    Colors.teal, Colors.blue, Colors.indigo, Colors.purple,
+    Colors.grey, Colors.blueGrey
+  ];
+  int index = allDepartments.indexOf(dept);
+  if (index == -1) return Colors.black;
+  return colors[index % colors.length];
+}
+
+Widget buildProfileImage(String name, {double size = 50, bool isSquare = true}) {
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      color: Colors.grey[300],
+      shape: isSquare ? BoxShape.rectangle : BoxShape.circle,
+      borderRadius: isSquare ? BorderRadius.circular(8) : null,
+      image: DecorationImage(
+        image: AssetImage('assets/images/$name.png'),
+        fit: BoxFit.cover,
+      ),
+    ),
+  );
+}
+
+
+// --- 왼쪽 패널 ---
+class LeftPanel extends StatelessWidget {
+  const LeftPanel({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<InterviewViewModel>();
+    final allDepts = [...realDepartments, ...specialDepartments];
+
+    return Container(
+      color: backGroundDark,
+      child: ListView.builder(
+        itemCount: allDepts.length,
+        itemBuilder: (context, index) {
+          final dept = allDepts[index];
+          final candidates = viewModel.getCandidatesByDept(dept);
+
+          // --- 새로운 로직: 국 전체 테두리 색상 결정 ---
+          Color containerColor = backGround;
+          bool hasConfirmedConflict = false;
+          bool hasCandidateConflict = false;
+
+          for (var candidate in candidates) {
+            // 1. 중복 확정 체크 (빨간색)
+            int confirmedInOtherDepts = candidate.assigned.values.where((s) => s == 'confirmed').length;
+            if (candidate.assigned.containsKey(dept) && confirmedInOtherDepts >= 2) {
+              hasConfirmedConflict = true;
+              break;
+            }
+          }
+
+          // 2. 중복 후보 체크 (주황색, 확정 충돌이 없을 경우에만)
+          if (!hasConfirmedConflict) {
+            for (var candidate in candidates) {
+              int candidateInOtherDepts = candidate.assigned.values.where((s) => s == 'candidate').length;
+              if (candidate.assigned.containsKey(dept) && candidateInOtherDepts >= 2) {
+                hasCandidateConflict = true;
+                break;
+              }
+            }
+          }
+
+          if (hasConfirmedConflict) {
+            containerColor = Colors.red.withOpacity(0.4);
+          } else if (hasCandidateConflict) {
+            containerColor = Colors.orange.withOpacity(0.4);
+          }
+          // ----------------------------------------
+
+          // 정렬 및 그룹화: 확정(confirmed) -> 구분선 -> 후보(candidate)
+          final confirmedList = candidates.where((c) => c.assigned[dept] == "confirmed").toList();
+          final candidateList = candidates.where((c) => c.assigned[dept] == "candidate").toList();
+
+          return Container(
+            height: 122,
+            margin: EdgeInsets.all(8),
+            padding: const EdgeInsets.all(8.0),
+            decoration: BoxDecoration(
+              color: containerColor, // 결정된 배경색 적용
+              borderRadius: BorderRadius.circular(12)
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  dept,
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      // 텍스트 색상도 강조
+                      color: hasConfirmedConflict ? Colors.red.shade700 : (hasCandidateConflict ? Colors.orange.shade700 : Colors.white)
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      // 1. 확정 리스트
+                      ...confirmedList.map((c) => _buildMiniProfile(c)),
+
+                      // 2. 검은색 구분선 (항상 존재)
+                      Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 12),
+                        width: 2,
+                        color: Colors.white70,
+                      ),
+
+                      // 3. 후보 리스트
+                      ...candidateList.map((c) => _buildMiniProfile(c)),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildMiniProfile(Candidate c) {
+    return Container(
+      width: 70,
+      margin: const EdgeInsets.only(right: 8),
+      child: Column(
+        children: [
+          buildProfileImage(c.name, size: 50, isSquare: true),
+          const SizedBox(height: 4),
+          Text(c.name, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 12)),
+        ],
+      ),
+    );
+  }
+}
+
+// --- 가운데 패널 ---
+class MiddlePanel extends StatelessWidget {
+  const MiddlePanel({Key? key}) : super(key: key);
+
+  Future<void> _launchURL(String url) async {
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      throw Exception('Could not launch $uri');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<InterviewViewModel>();
+    final candidate = viewModel.selectedCandidate;
+
+    if (candidate == null) {
+      return const Center(child: Text("지원자를 선택해 정보 보기"));
+    }
+
+    // 테두리 로직 계산
+    int confirmedCount = 0;
+    int candidateCount = 0;
+
+    candidate.assigned.forEach((dept, status) {
+      if (realDepartments.contains(dept)) {
+        if (status == 'confirmed') confirmedCount++;
+        if (status == 'candidate') candidateCount++;
+      }
+    });
+
+    Color globalBorderColor = Colors.transparent;
+
+    if (confirmedCount >= 2) {
+      globalBorderColor = Colors.red;
+    } else if (confirmedCount < 2 && candidateCount >= 2) { // 확정 충돌이 없을 때만 후보 충돌 검사
+      globalBorderColor = Colors.orange;
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(24),
+      //color: Colors.white,
+      child: Column(
+        spacing: 16,
+        children: [
+          buildProfileImage(candidate.name, size: 120, isSquare: true),
+          Text(candidate.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+
+          Wrap(
+            spacing: 8,
+            children: candidate.appliedList.map((dept) => Chip(
+              label: Text(dept, style: const TextStyle(color: Colors.white)),
+              backgroundColor: getDeptColor(dept),
+            )).toList(),
+          ),
+
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("면접 코멘트", style: TextStyle(fontWeight: FontWeight.bold)),
+              ElevatedButton.icon(
+                onPressed: () {
+                  if (candidate.transcriptUrl.isNotEmpty) {
+                    _launchURL(candidate.transcriptUrl);
+                  }
+                },
+                icon: const Icon(Icons.description, size: 16),
+                label: const Text("속기록 보기"),
+                style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.grey[800],
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    textStyle: const TextStyle(fontSize: 12)
+                ),
+              )
+            ],
+          ),
+
+          Expanded(
+            flex: 2,
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                  color: backGround,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey[300]!)
+              ),
+              child: SingleChildScrollView(
+                child: Text(candidate.comment, style: const TextStyle(fontSize: 16)),
+              ),
+            ),
+          ),
+
+
+          // 8개 국 버튼
+          GridView.builder(
+            itemCount: 8,
+            shrinkWrap: true,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 4,
+              childAspectRatio: 3.0,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              return HoverDeptButton(
+                deptName: realDepartments[index],
+                candidate: candidate,
+                globalBorderColor: globalBorderColor,
+              );
+            },
+          ),
+
+          // 탈락/보류 버튼 (단순 버튼)
+          Row(
+            children: [
+              Expanded(child: SimpleDeptButton(deptName: "탈락", candidate: candidate)),
+              const SizedBox(width: 10),
+              Expanded(child: SimpleDeptButton(deptName: "보류", candidate: candidate)),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+}
+
+// --- 마우스 호버 시 분리되는 버튼 (확정/후보) ---
+class HoverDeptButton extends StatefulWidget {
+  final String deptName;
+  final Candidate candidate;
+  final Color globalBorderColor;
+
+  const HoverDeptButton({
+    Key? key,
+    required this.deptName,
+    required this.candidate,
+    required this.globalBorderColor,
+  }) : super(key: key);
+
+  @override
+  State<HoverDeptButton> createState() => _HoverDeptButtonState();
+}
+
+class _HoverDeptButtonState extends State<HoverDeptButton> {
+  bool _isHovering = false;
+
+  @override
+  Widget build(BuildContext context) {
+    String? currentStatus = widget.candidate.assigned[widget.deptName];
+    bool isAssigned = currentStatus =="confirmed";
+    bool isCandidate = currentStatus == "candidate";
+    Color baseColor = getDeptColor(widget.deptName);
+
+    Color borderColor = Colors.transparent;
+    double borderWidth = 0.0;
+
+    if (isAssigned || isCandidate) {
+      borderWidth = 4.0;
+      borderColor = widget.globalBorderColor == Colors.transparent
+          ? isCandidate?Colors.white70:Colors.white
+          : widget.globalBorderColor;
+    }
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovering = true),
+      onExit: (_) => setState(() => _isHovering = false),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: baseColor.withOpacity(isAssigned ? 1.0 : isCandidate? 0.7:0.5),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor, width: borderWidth),
+          boxShadow: isAssigned ? [const BoxShadow(blurRadius: 4, color: Colors.black26)] : null,
+        ),
+        clipBehavior: Clip.hardEdge,
+        child: _isHovering
+            ? Row(
+          children: [
+            _buildHalfButton("확정", "confirmed"),
+            Container(width: 1, color: Colors.white30),
+            _buildHalfButton("후보", "candidate"),
+          ],
+        )
+            : Center(
+          child: Text(
+            isAssigned
+                ? "${widget.deptName}\n확정"
+                : isCandidate? "${widget.deptName}\n후보": widget.deptName,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isAssigned ? Colors.white : Colors.white70,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHalfButton(String label, String statusKey) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            context.read<InterviewViewModel>().toggleAssignment(widget.deptName, statusKey);
+          },
+          child: Center(
+            child: Text(
+              label,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- 단순 버튼 (탈락/보류용) ---
+class SimpleDeptButton extends StatelessWidget {
+  final String deptName;
+  final Candidate candidate;
+
+  const SimpleDeptButton({
+    Key? key,
+    required this.deptName,
+    required this.candidate,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    bool isAssigned = candidate.assigned.containsKey(deptName);
+    Color baseColor = Colors.grey;
+
+    return GestureDetector(
+      onTap: () {
+        context.read<InterviewViewModel>().toggleAssignment(deptName, "confirmed");
+      },
+      child: Container(
+        height: 50,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: baseColor.withOpacity(isAssigned ? 1.0 : 0.3),
+          borderRadius: BorderRadius.circular(8),
+          border: isAssigned ? Border.all(color: Colors.white, width: 4) : null,
+        ),
+        child: Text(
+          deptName,
+          style: TextStyle(
+              color: isAssigned ? Colors.white : Colors.white70,
+              fontWeight: FontWeight.bold
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// --- 오른쪽 패널 ---
+class RightPanel extends StatelessWidget {
+  const RightPanel({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<InterviewViewModel>();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      child: ListView.separated(
+        itemCount: viewModel.candidates.length,
+        separatorBuilder: (ctx, idx) => const SizedBox(height: 12),
+        itemBuilder: (context, index) {
+          final candidate = viewModel.candidates[index];
+          bool isSelected = viewModel.selectedCandidate?.name == candidate.name;
+
+          return GestureDetector(
+            onTap: () {
+              isSelected ? viewModel.clearSelection() : viewModel.selectCandidate(candidate);
+            },
+            child: Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: backGround,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: isSelected ? Colors.blue : Colors.grey[300]!,
+                    width: isSelected ? 3.0 : 1.0
+                ),
+              ),
+              child: Row(
+                children: [
+                  buildProfileImage(candidate.name, size: 50, isSquare: false),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(candidate.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 4,
+                          runSpacing: 4,
+                          children: candidate.appliedList.map((d) => Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                                color: getDeptColor(d).withOpacity(0.2),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(color: getDeptColor(d), width: 0.5)
+                            ),
+                            child: Text(d, style: TextStyle(fontSize: 10, color: getDeptColor(d), fontWeight: FontWeight.bold)),
+                          )).toList(),
+                        )
+                      ],
+                    ),
+                  )
+                ],
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
