@@ -342,6 +342,7 @@ class MiddlePanel extends StatelessWidget {
       child: Column(
         // crossAxisAlignment: CrossAxisAlignment.stretch, // Column의 children이 stretch 되도록 설정
         // mainAxisAlignment: MainAxisAlignment.start,
+        spacing: 4,
         children: [
           buildProfileImage(candidate.name, size: 120, isSquare: true),
           Text(candidate.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
