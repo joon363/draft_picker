@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart'; // ValueNotifier, debugPrint 사용
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'model.dart';
+import 'dart:convert';
+import 'package:flutter/services.dart' show rootBundle;
 
 // 웹소켓 연결 상태를 나타내는 열거형
 enum SocketStatus { connecting, connected, disconnected }
@@ -26,6 +28,8 @@ class ApiService {
 
   Future<List<Candidate>> fetchInitialCandidates() async {
     try {
+      final jsonString = await rootBundle.loadString('assets/dummy.json');
+      return candidateListFromJson(jsonString);
       final response = await http.get(Uri.parse('$_baseUrl/candidates'));
       if (response.statusCode == 200) {
         return candidateListFromJson(utf8.decode(response.bodyBytes));
